@@ -6,6 +6,8 @@ output: html_notebook
 ##Exercicios do curso de "Applying Data Analytics in Accounting por Universidade de Illinois em Urbana-ChampaignUniversidade de Illinois em Urbana-Champaign
 #Feito em RStudio
 
+Bases: pcard_data_part1_v01.csv, pcard_data_part2_v01.csv
+
 #Load Packages
 ```{r}
 library(tidyverse)
