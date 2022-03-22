@@ -3,6 +3,8 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+##Exercicios do curso de "Applying Data Analytics in Accounting por Universidade de Illinois em Urbana-ChampaignUniversidade de Illinois em Urbana-Champaign
+#Feito em RStudio
 #NPL with Conference Call
 
 # Install packages
@@ -16,7 +18,7 @@ library(Rcpp)
 
 # Load one conference call as a text file
 ```{r}
-save <- read_file(r"(C:\Users\Ricardo Campos\Desktop\Erika\Auditoria\ApplyingDataAnalytics\Module-3-RStudio files for Coursera\SAVEQ22020.txt)")
+save <- read_file(r"(C:\Users\Ricardoxx\Desktop\Erika\Auditoria\SAVEQ22020.txt)")
 ```
 
 # Look at text
@@ -82,7 +84,7 @@ tokens %>%
   ggplot(aes(x=count, y=token)) + geom_col()
 
 # Load custom stopwords
-custom_stop_words <- read_csv(r"(C:\Users\Ricardo Campos\Desktop\Erika\Auditoria\ApplyingDataAnalytics\Module-3-RStudio files for Coursera\stop_words_list.csv)", col_names = FALSE)
+custom_stop_words <- read_csv(r"(C:\Users\Ricardoxx\Desktop\Erika\Auditoria\stop_words_list.csv)", col_names = FALSE)
 
 # remove stop words
 tokens <- tokens %>%
