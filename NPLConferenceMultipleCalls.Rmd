@@ -1,0 +1,169 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## NPL with Conference Calls - Multiple Calls
+
+# Install packages
+```{r}
+library(tidyverse)
+library(tidytext)
+library(SnowballC)
+library(wordcloud)
+library(Rcpp)
+```
+
+```{r}
+# bring in the data
+## used 'readchar()' because of encoding error in 'read_file()'
+
+file <- r"(C:\Users\Ricardo Campos\Desktop\Erika\Auditoria\ApplyingDataAnalytics\Module-3-RStudio files for Coursera\AMZNQ42019.txt)"
+amazon <- readChar(file, file.info(file)$size)
+
+file <- r"(C:\Users\Ricardo Campos\Desktop\Erika\Auditoria\ApplyingDataAnalytics\Module-3-RStudio files for Coursera\GOOGLQ42019.txt)"
+google <- readChar(file, file.info(file)$size)
+
+file <- r"(C:\Users\Ricardo Campos\Desktop\Erika\Auditoria\ApplyingDataAnalytics\Module-3-RStudio files for Coursera\LOWQ42019.txt)"
+lowes <- readChar(file, file.info(file)$size)
+
+file <- r"(C:\Users\Ricardo Campos\Desktop\Erika\Auditoria\ApplyingDataAnalytics\Module-3-RStudio files for Coursera\TRIPQ42019.txt)"
+trip <- readChar(file, file.info(file)$size)
+
+#Load custom stopwords (if did not do above)
+custom_stop_words <- read_csv(r"(C:\Users\Ricardo Campos\Desktop\Erika\Auditoria\ApplyingDataAnalytics\Module-3-RStudio files for Coursera\stop_words_list.csv)", col_names = FALSE)
+
+#Load finance sentiment list (if did not do above)
+lm_dict <- tidytext::get_sentiments('loughran')
+
+```
+# MAke one dataframe with all conference calls
+
+```{r}
+AMZNQ42019 <- tibble(amazon) %>% #Create dataframe from the text string
+  unnest_tokens(sentence, amazon, token = 'sentences') %>% #break into sentences tokens
+  mutate(sentence_num=row_number(), call = 'AMZNQ42019') %>% #create sentence number
+  unnest_tokens(word, sentence, token = 'words') %>% #break into word tokens
+  mutate(word_num= row_number()) %>% #number words
+  anti_join(custom_stop_words, by = c('word' = 'X1')) %>% #remove stop words
+  inner_join(lm_dict, by='word') #add sentiment (keep only sentiment words)
+
+GOOGLQ42019 <- tibble(google) %>% 
+  unnest_tokens(sentence, google, token = 'sentences') %>% 
+  mutate(sentence_num=row_number(), call = 'GOOGLQ42019') %>% 
+  unnest_tokens(word, sentence) %>%
+  mutate(word_num= row_number()) %>% 
+  anti_join(custom_stop_words, by=c('word' = 'X1')) %>% 
+  inner_join(lm_dict)
+
+LOWQ42019 <- tibble(lowes) %>% 
+  unnest_tokens(sentence, lowes, token = 'sentences') %>% 
+  mutate(sentence_num=row_number(), call = 'LOWQ42019') %>% 
+  unnest_tokens(word, sentence) %>%
+  mutate(word_num= row_number()) %>% 
+  anti_join(custom_stop_words, by=c('word' = 'X1')) %>% 
+  inner_join(lm_dict)
+
+TRIPQ42019 <- tibble(trip) %>% 
+  unnest_tokens(sentence, trip, token = 'sentences') %>% 
+  mutate(sentence_num=row_number(), call = 'TRIPQ42019') %>% 
+  unnest_tokens(word, sentence) %>%
+  mutate(word_num= row_number()) %>% 
+  anti_join(custom_stop_words, by=c('word' = 'X1')) %>% 
+  inner_join(lm_dict)
+
+all_firms <- bind_rows(AMZNQ42019, GOOGLQ42019, LOWQ42019, TRIPQ42019)
+print(all_firms)
+
+```
+
+# Sentiment
+
+```{r}
+
+amazon1 <- all_firms %>%
+  filter(call=='AMZNQ42019') %>%
+  group_by(call, sentiment) %>%
+  summarize(count = n(),
+            percent = count/all_firms %>% filter(call == 'AMZNQ42019') %>% nrow()) # percent just for amazon
+
+google1 <- all_firms %>%
+  filter(call=='GOOGLQ42019') %>%
+  group_by(call, sentiment) %>%
+  summarize(count = n(),
+            percent = count/all_firms %>% filter(call == 'GOOGLQ42019') %>% nrow())
+
+lowes1 <- all_firms %>%
+  filter(call=='LOWQ42019') %>%
+  group_by(call, sentiment) %>%
+  summarize(count = n(),
+            percent = count/all_firms %>% filter(call == 'LOWQ42019') %>% nrow())
+
+trip1 <- all_firms %>%
+  filter(call=='TRIPQ42019') %>%
+  group_by(call, sentiment) %>%
+  summarize(count = n(),
+            percent = count/all_firms %>% filter(call == 'TRIPQ42019') %>% nrow())
+
+percentages <- bind_rows(amazon1, google1, lowes1, trip1)
+print(percentages)
+
+percentages %>%
+  ggplot(aes(x='', y=percent, fill=sentiment)) + 
+  geom_bar(width = 1, stat='identity') +
+  facet_wrap(~call, ncol = 2, scales= "free_x")
+
+```
+
+# Sentiment over time
+
+```{r}
+all_firms %>%
+  group_by(call, sentence_num, sentiment) %>%
+summarize(n=n()) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% #transpose the data for the plot
+  mutate(tone = positive - negative) %>% # create tone
+  ggplot(aes(x=sentence_num, y=tone, fill=call))+
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~call, ncol = 2, scales = "free_x")
+  
+```
+
+#get individual wordclouds
+```{r}
+
+set.seed(77) #seed for random number
+cloud <- tibble(amazon) %>% #create dataframe
+  unnest_tokens(word, amazon) %>% #word tokens
+  anti_join(custom_stop_words, by=c('word' = 'X1')) %>% #remove stop words
+  group_by(word) %>%
+  summarize(n=n()) %>%
+  with (wordcloud(words=word, freq=n, min.freq=10, max.words=500, random.order=F, rot.per=0.30, colors=brewer.pal(8, "Dark2")))
+
+set.seed(77) 
+cloud <- tibble(google) %>% #create dataframe
+  unnest_tokens(word, google) %>% #word tokens
+  anti_join(custom_stop_words, by=c('word' = 'X1')) %>% #remove stop words
+  group_by(word) %>%
+  summarize(n=n()) %>%
+  with (wordcloud(words=word, freq=n, min.freq=10, max.words=500, random.order=F, rot.per=0.30, colors=brewer.pal(8, "Dark2")))
+
+
+set.seed(77) #seed for random number
+cloud <- tibble(lowes) %>% #create dataframe
+  unnest_tokens(word, lowes) %>% #word tokens
+  anti_join(custom_stop_words, by=c('word' = 'X1')) %>% #remove stop words
+  group_by(word) %>%
+  summarize(n=n()) %>%
+  with (wordcloud(words=word, freq=n, min.freq=10, max.words=500, random.order=F, rot.per=0.30, colors=brewer.pal(8, "Dark2")))
+
+set.seed(77) #seed for random number
+cloud <- tibble(trip) %>% #create dataframe
+  unnest_tokens(word, trip) %>% #word tokens
+  anti_join(custom_stop_words, by=c('word' = 'X1')) %>% #remove stop words
+  group_by(word) %>%
+  summarize(n=n()) %>%
+  with (wordcloud(words=word, freq=n, min.freq=10, max.words=500, random.order=F, rot.per=0.30, colors=brewer.pal(8, "Dark2")))
+
+```
+
